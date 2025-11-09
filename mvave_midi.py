@@ -3,7 +3,7 @@ import mido
 import time
 import sys
 
-# --- Configuración ---
+# --- Configuration ---
 SEARCH_KEYS = ["M-VAVE", "Chocolate", "FootCtrl-bt"]
 VIRTUAL_OUT_NAME = "mwave_midi"
 SEND_INITIAL_CONFIG = False
@@ -20,63 +20,65 @@ PITCH_MAP = {
     "button_d": {"min": 4096, "max": 8191, "note": 63},
 }
 
-def elegir_puerto(puertos, tipo):
-    print(f"\nPuertos {tipo} disponibles:")
-    for i, p in enumerate(puertos, 1):
+
+def choose_port(ports, port_type):
+    print(f"\nAvailable {port_type} ports:")
+    for i, p in enumerate(ports, 1):
         print(f"  {i}. {p}")
     try:
-        eleccion = int(input(f"\nSelecciona el número del puerto {tipo}: "))
-        return puertos[eleccion - 1]
+        choice = int(input(f"\nSelect the {port_type} port number: "))
+        return ports[choice - 1]
     except (ValueError, IndexError):
-        print("Selección inválida.")
+        print("Invalid selection.")
         sys.exit(1)
 
-# --- Listar puertos disponibles ---
+
+# --- List available ports ---
 inputs = mido.get_input_names()
 outputs = mido.get_output_names()
 
 if not inputs:
-    print("No hay puertos de entrada MIDI disponibles.")
+    print("No MIDI input ports available.")
     sys.exit(1)
 if not outputs:
-    print("No hay puertos de salida MIDI disponibles.")
+    print("No MIDI output ports available.")
     sys.exit(1)
 
-mwave_in = elegir_puerto(inputs, "de entrada")
-virtual_out = elegir_puerto(outputs + [f"(crear {VIRTUAL_OUT_NAME})"], "de salida")
+mwave_in = choose_port(inputs, "input")
+virtual_out = choose_port(outputs + [f"(create {VIRTUAL_OUT_NAME})"], "output")
 
-# --- Abrir puertos ---
-print(f"\nUsando puerto de entrada: {mwave_in}")
+# --- Open ports ---
+print(f"\nUsing input port: {mwave_in}")
 try:
     inport = mido.open_input(mwave_in)
 except Exception as e:
-    print(f"No se pudo abrir el puerto de entrada: {e}")
+    print(f"Could not open input port: {e}")
     sys.exit(1)
 
-if virtual_out.startswith("(crear"):
+if virtual_out.startswith("(create"):
     try:
         outport = mido.open_output(VIRTUAL_OUT_NAME, virtual=True)
-        print(f"Creado puerto virtual de salida: {VIRTUAL_OUT_NAME}")
+        print(f"Created virtual output port: {VIRTUAL_OUT_NAME}")
     except Exception:
-        print("No se pudo crear puerto virtual. Crea uno con loopMIDI e indícalo en VIRTUAL_OUT_NAME.")
+        print("Could not create virtual port. Create one manually with loopMIDI and set its name in VIRTUAL_OUT_NAME.")
         outport = None
 else:
     outport = mido.open_output(virtual_out)
-    print(f"Usando puerto de salida existente: {virtual_out}")
+    print(f"Using existing output port: {virtual_out}")
 
-# --- Estados toggle ---
+# --- Toggle states ---
 toggle_states = {4: False, 17: False, 18: False, 19: False}
 
-print("\nBridge listo. Escuchando mensajes... (Ctrl+C para salir)\n")
+print("\nBridge ready. Listening for messages... (Press Ctrl+C to exit)\n")
 
-# --- Bucle principal ---
+# --- Main loop ---
 try:
     for msg in inport:
         print(f"IN: {msg}")
 
-        # --- Botones tipo toggle ---
+        # --- Toggle buttons ---
         if msg.type == 'control_change' and msg.control in toggle_states:
-            if msg.value == 127:  # Solo al presionar
+            if msg.value == 127:  # Only on press
                 toggle_states[msg.control] = not toggle_states[msg.control]
                 new_val = 127 if toggle_states[msg.control] else 0
                 out = mido.Message('control_change', control=msg.control, value=new_val)
@@ -84,7 +86,7 @@ try:
                     outport.send(out)
                 print(f"> Toggle CC{msg.control} -> {'ON' if new_val == 127 else 'OFF'}")
 
-        # --- Mapeo Pitchwheel ---
+        # --- Pitchwheel mapping ---
         elif msg.type == 'pitchwheel':
             pitch = msg.pitch
             sent = False
@@ -103,16 +105,20 @@ try:
                 outport.send(cc_msg)
                 print(f"> fallback: sent CC40={cc_msg.value}")
 
-        # --- Reenvío normal ---
+        # --- Normal forwarding ---
         elif outport and msg.type in ('note_on', 'note_off', 'control_change'):
             outport.send(msg)
-            print("-> reenviado a Ableton:", msg)
+            print("-> resending to Ableton:", msg)
 
 except KeyboardInterrupt:
-    print("\nCerrando puertos...")
-    try: inport.close()
-    except: pass
+    print("\nClosing ports...")
     try:
-        if outport: outport.close()
-    except: pass
-    print("Adiós.")
+        inport.close()
+    except:
+        pass
+    try:
+        if outport:
+            outport.close()
+    except:
+        pass
+    print("Goodbye.")

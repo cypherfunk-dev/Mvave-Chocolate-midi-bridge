@@ -1,1 +1,5 @@
 mvave_midi/
+*.spec
+build/
+dist/
+__pycache__/
