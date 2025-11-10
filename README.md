@@ -62,6 +62,8 @@ Also, CubeSuite (official software) is a little bit unstable.
 - Python 3.10+
 - `mido`
 - `python-rtmidi`
+- `customtkinter`
+
 
 Example setup on Windows:
 ```bash
