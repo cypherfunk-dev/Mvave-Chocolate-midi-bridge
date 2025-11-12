@@ -312,43 +312,61 @@ class MidiBridgeApp(ctk.CTk):
         self.learning_manager.cancel_learning()
         self.update_learning_ui()
 
+
+
     def handle_normal_mapping(self, control, value):
-        """Maneja mapeo normal de CC"""
-        # Buscar switch que coincida con el CC de entrada
+        """Maneja mapeo normal de CC - VERSIÓN OPTIMIZADA"""
+        # Buscar switch
         matching_switch = None
         for switch in self.switches.values():
             try:
-                if (switch.input_cc_var.get() != self.localization.t("not_assigned") and 
-                    int(switch.input_cc_var.get()) == control):
+                input_cc_value = switch.input_cc_var.get()
+                if (input_cc_value != self.localization.t("not_assigned") and 
+                    int(input_cc_value) == control):
                     matching_switch = switch
                     break
             except ValueError:
                 continue
-        
+    
         if not matching_switch:
-            self.console_panel.log(f"CC{control} no está mapeado a ningún switch")
             return
-        
-        # Determinar estado según el modo
-        mode = matching_switch.mode_var.get()
-        if mode == self.localization.t("toggle"):
-            # Modo toggle: alterna estado
-            new_state = not matching_switch.state if value > 0 else matching_switch.state
+    
+        mode = matching_switch.mode_var.get().lower()
+        old_state = matching_switch.state
+    
+    # Lógica de estado
+        if "toggle" in mode:
+            # TOGGLE: Solo en press (valor > 0)
+            if value > 0:
+                matching_switch.state = not old_state
+            else:
+                return  # Ignorar release
         else:
-            # Modo momentary: sigue el valor
-            new_state = value > 0
+            # MOMENTARY: Seguir valor
+            matching_switch.state = value > 0
         
-        matching_switch.state = new_state
-        self.controls_panel.refresh_switch_ui(matching_switch.control_id)
-        
-        # Enviar CC de salida
-        try:
-            output_cc = int(matching_switch.output_cc_var.get())
-            output_value = 127 if new_state else 0
-            self.midi_manager.send_cc(output_cc, output_value)
-            self.console_panel.log(f"MIDI OUT: CC{output_cc} = {output_value}")
-        except ValueError:
-            self.console_panel.log(f"Error: CC de salida inválido")
+        # Solo enviar MIDI si el estado cambió
+        if matching_switch.state != old_state:
+            self.controls_panel.refresh_switch_ui(matching_switch.control_id)
+            
+            try:
+                output_cc = int(matching_switch.output_cc_var.get())
+                output_value = 127 if matching_switch.state else 0
+                self.midi_manager.send_cc(output_cc, output_value)
+                self.console_panel.log(f"MIDI OUT: CC{output_cc} = {output_value} ({'ON' if matching_switch.state else 'OFF'})")
+            except ValueError:
+                pass
+
+
+
+
+
+
+
+
+
+
+
 
     def toggle_learning_mode(self):
         """Activa/desactiva modo aprendizaje global"""

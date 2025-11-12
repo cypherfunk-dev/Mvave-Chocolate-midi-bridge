@@ -26,7 +26,7 @@ class ControlsPanel(ctk.CTkFrame):
             frame, 
             text=f"{self.localization.t('switch')} {switch.switch_number}", 
             fg_color="gray",
-            command=lambda sid=switch.control_id: self.on_learn_callback(sid, False)
+            state="disabled"
         )
         btn.pack(side="left", padx=5, pady=5)
         

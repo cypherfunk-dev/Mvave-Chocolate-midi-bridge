@@ -1,7 +1,7 @@
 {
   "language": "en",
-  "input_port": "FootCtrl-bt 0",
-  "output_port": "mvave_midi 2",
+  "input_port": "FootCtrl-bt 1",
+  "output_port": "mvave_midi 1",
   "switches": {
     "btn_0": {
       "input_cc": "4",
