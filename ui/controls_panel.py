@@ -16,6 +16,10 @@ class ControlsPanel(ctk.CTkFrame):
         self.switches_container = ctk.CTkFrame(self)
         self.switches_container.pack(fill="x", pady=5)
     
+
+
+
+
     def add_switch(self, switch):
         """Agrega un switch a la interfaz"""
         frame = ctk.CTkFrame(self.switches_container)
@@ -26,21 +30,49 @@ class ControlsPanel(ctk.CTkFrame):
             frame, 
             text=f"{self.localization.t('switch')} {switch.switch_number}", 
             fg_color="gray",
-            state="disabled"
+            state="disabled",
+            command=lambda sid=switch.control_id: self.on_learn_callback(sid, False)
         )
         btn.pack(side="left", padx=5, pady=5)
         
-        # Selector de modo
+        # ✅ SELECTOR DE MODO (SOLO UNO) - CON TRADUCCIÓN
+        mode_display_values = [self.localization.t("toggle"), self.localization.t("momentary")]
+        mode_var = switch.mode_var
+
+        def on_mode_change(new_display_value):
+            # Convertir texto mostrado a valor interno
+            if new_display_value == self.localization.t("toggle"):
+                mode_var.set("toggle")
+            elif new_display_value == self.localization.t("momentary"):
+                mode_var.set("momentary")
+        
+        # Configurar valor inicial del display
+        current_internal_value = mode_var.get()
+        if current_internal_value == "toggle":
+            current_display_value = self.localization.t("toggle")
+        else:
+            current_display_value = self.localization.t("momentary")
+        
         mode_menu = ctk.CTkOptionMenu(
             frame, 
-            values=[self.localization.t("toggle"), self.localization.t("momentary")], 
-            variable=switch.mode_var
+            values=mode_display_values,
+            variable=ctk.StringVar(value=current_display_value),
+            command=on_mode_change
         )
         mode_menu.pack(side="right", padx=5)
         
+        # ❌ ELIMINAR ESTO - ESTÁ DUPLICADO:
+        # # Selector de modo
+        # mode_menu = ctk.CTkOptionMenu(
+        #     frame, 
+        #     values=[self.localization.t("toggle"), self.localization.t("momentary")], 
+        #     variable=switch.mode_var
+        # )
+        # mode_menu.pack(side="right", padx=5)
+        
         # Campo CC Entrada
         ctk.CTkLabel(frame, text=self.localization.t("input_cc")).pack(side="left", padx=(10, 2))
-        entry_cc = ctk.CTkEntry(frame, width=80, textvariable=switch.input_cc_var, state="readonly")
+        entry_cc = ctk.CTkEntry(frame, width=100, textvariable=switch.input_cc_var, state="readonly")
         entry_cc.pack(side="left", padx=5)
         
         # Campo CC Salida
@@ -71,6 +103,12 @@ class ControlsPanel(ctk.CTkFrame):
         
         # Actualizar UI del switch
         self.refresh_switch_ui(switch.control_id)
+
+
+
+
+
+
     
     def delete_switch(self, control_id):
         """Elimina un switch de la interfaz"""
@@ -92,51 +130,138 @@ class ControlsPanel(ctk.CTkFrame):
         self.switches_container = ctk.CTkFrame(self)
         self.switches_container.pack(fill="x", pady=5)
     
+
+
+
+
+
+
+
+
     def refresh_switch_ui(self, control_id):
-        """Actualiza la UI de un switch específico"""
+        """Actualiza la UI de un switch específico - VERSIÓN SIMPLE"""
         if control_id in self.switch_frames:
             elements = self.switch_frames[control_id]
             switch = elements['switch']
             
-            # Actualizar texto y color del botón según el estado
-            if switch.input_cc_var.get() == self.localization.t("not_assigned"):
+            input_cc_value = switch.input_cc_var.get()
+            not_assigned_text = self.localization.t("not_assigned")
+            
+            # ✅ Verificar si es un número CC válido
+            is_assigned = True
+            try:
+                cc_num = int(input_cc_value)
+                if cc_num < 0 or cc_num > 127:
+                    is_assigned = False
+            except ValueError:
+                # Si no es número, verificar si es el texto de "no asignado"
+                if input_cc_value == not_assigned_text:
+                    is_assigned = False
+                else:
+                    # Si es otro texto, tratarlo como no asignado
+                    is_assigned = False
+                    # Y actualizar al texto correcto
+                    switch.input_cc_var.set(not_assigned_text)
+            
+            if not is_assigned:
                 elements['button'].configure(
                     text=f"{self.localization.t('switch')} {switch.switch_number}",
                     fg_color="gray"
                 )
             else:
                 color = "green" if switch.state else "red"
-                btn_text = f"CC{switch.input_cc_var.get()}→CC{switch.output_cc_var.get()}: {'ON' if switch.state else 'OFF'}"
+                btn_text = f"CC{input_cc_value}→CC{switch.output_cc_var.get()}: {'ON' if switch.state else 'OFF'}"
                 elements['button'].configure(
                     text=btn_text,
                     fg_color=color
                 )
-    
+
+
+
+
+
+
+
+
+
+
+
     def refresh_all_switches(self):
         """Actualiza todos los switches"""
         for control_id in self.switch_frames:
             self.refresh_switch_ui(control_id)
     
     def update_learning_ui(self, learning_manager):
-        """Actualiza la UI según el estado de aprendizaje"""
+        """Actualiza la UI según el estado de aprendizaje - CORREGIDO"""
         for control_id, elements in self.switch_frames.items():
-            if (learning_manager.learning_mode and 
-                learning_manager.learning_control_id == control_id):
+            if learning_manager.learning_mode:
+                # MODO APRENDIZAJE ACTIVO - hacer botones PRESIONABLES
+                elements['button'].configure(state="normal")
                 
-                if learning_manager.learning_cc_out:
+                if (learning_manager.learning_control_id == control_id and 
+                    learning_manager.learning_control_id is not None):
+                    # Este control está siendo aprendido actualmente
+                    if learning_manager.learning_cc_out:
+                        elements['button'].configure(
+                            text="¡Presiona CC salida!", 
+                            fg_color="purple"
+                        )
+                    else:
+                        elements['button'].configure(
+                            text="¡Presiona control físico!", 
+                            fg_color="yellow"
+                        )
+                else:
+                    # Modo aprendizaje activo pero este control no está siendo aprendido
                     elements['button'].configure(
-                        text="¡Presiona CC salida!", 
-                        fg_color="purple"
+                        text="Click para aprender", 
+                        fg_color="orange"
+                    )
+            else:
+                # MODO APRENDIZAJE INACTIVO - estado normal
+                self.refresh_switch_ui(control_id)
+            """Actualiza la UI según el estado de aprendizaje"""
+            for control_id, elements in self.switch_frames.items():
+                if (learning_manager.learning_mode and 
+                    learning_manager.learning_control_id == control_id):
+                    elements['button'].configure(state="normal")
+                    if learning_manager.learning_cc_out:
+                        elements['button'].configure(
+                            text="¡Presiona CC salida!", 
+                            fg_color="purple"
+                        )
+                    else:
+                        elements['button'].configure(
+                            text="¡Presiona control físico!", 
+                            fg_color="yellow"
+                        )
+                elif learning_manager.learning_mode:
+                    elements['button'].configure(
+                        text="Aprender...", 
+                        fg_color="orange"
                     )
                 else:
-                    elements['button'].configure(
-                        text="¡Presiona control físico!", 
-                        fg_color="yellow"
-                    )
-            elif learning_manager.learning_mode:
-                elements['button'].configure(
-                    text="Aprender...", 
-                    fg_color="orange"
-                )
+                    self.refresh_switch_ui(control_id)
+
+
+
+    def update_all_texts_fast(self):
+        """Actualiza solo los textos esenciales - MÁXIMA VELOCIDAD"""
+        for control_id, elements in self.switch_frames.items():
+            switch = elements['switch']
+            
+            # Solo OptionMenu (lo más importante)
+            mode_menu = elements['mode_menu']
+            current_internal_value = switch.mode_var.get()
+            new_values = [self.localization.t("toggle"), self.localization.t("momentary")]
+            
+            if current_internal_value == "toggle":
+                current_display_value = self.localization.t("toggle")
             else:
-                self.refresh_switch_ui(control_id)
+                current_display_value = self.localization.t("momentary")
+            
+            mode_menu.configure(values=new_values)
+            mode_menu.set(current_display_value)
+            
+            # Refrescar switch (actualiza el botón principal)
+            self.refresh_switch_ui(control_id)

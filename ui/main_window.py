@@ -158,10 +158,10 @@ class MidiBridgeApp(ctk.CTk):
             self.controls_panel.add_switch(switch)
 
     def change_language(self, language):
-        """Cambia el idioma de la aplicación"""
+        """Cambia el idioma de la aplicación - VERSIÓN OPTIMIZADA"""
         if language != self.localization.current_language:
             self.localization.current_language = language
-            self.rebuild_ui()
+            self.update_ui_texts()
 
     def rebuild_ui(self):
         """Reconstruye completamente la interfaz"""
@@ -183,18 +183,35 @@ class MidiBridgeApp(ctk.CTk):
             self.connect_btn.configure(text=self.localization.t("disconnect"), fg_color="red")
             self.learn_btn.configure(state="normal")
 
+
+
+
+
+
+
+
+
+
     def on_learn_request(self, control_id, is_output=False):
-        """Maneja solicitud de aprendizaje"""
+        """Maneja solicitud de aprendizaje - CON DEBUG"""
+        self.console_panel.log(f"DEBUG: on_learn_request - control_id: {control_id}, is_output: {is_output}")
+        
         if not self.is_connected:
             self.console_panel.log("Error: Primero debes conectar los puertos MIDI")
             return
         
         if is_output:
             self.learning_manager.start_learning_output(control_id)
+            self.console_panel.log(f"DEBUG: learning_control_id establecido a: {control_id} (output)")
         else:
             self.learning_manager.start_learning_input(control_id)
+            self.console_panel.log(f"DEBUG: learning_control_id establecido a: {control_id} (input)")
         
         self.update_learning_ui()
+
+    def update_learning_ui(self):
+        """Actualiza la UI según el estado de aprendizaje"""
+        self.controls_panel.update_learning_ui(self.learning_manager)
 
     def on_delete_switch(self, control_id):
         """Maneja eliminación de switch"""
@@ -309,7 +326,9 @@ class MidiBridgeApp(ctk.CTk):
                 self.switches[control_id].input_cc_var.set(str(control))
                 self.console_panel.log(f"CC ENTRADA para {control_id} asignado a CC{control}")
         
-        self.learning_manager.cancel_learning()
+        self.learning_manager.learning_control_id = None
+        self.learning_manager.learning_cc_out = False
+        
         self.update_learning_ui()
 
 
@@ -358,7 +377,30 @@ class MidiBridgeApp(ctk.CTk):
                 pass
 
 
-
+    def update_ui_texts(self):
+        """Actualiza solo los textos de la UI - VERSIÓN RÁPIDA"""
+        # Botones principales
+        self.connect_btn.configure(text=self.localization.t("connect") if not self.is_connected else self.localization.t("disconnect"))
+        self.learn_btn.configure(text=self.localization.t("learn_controls"))
+        self.save_btn.configure(text=self.localization.t("save_config"))
+        self.load_btn.configure(text=self.localization.t("load_config"))
+        self.add_switch_btn.configure(text=f"+ {self.localization.t('add_switch')}")
+        
+        # Labels de configuración
+        for widget in self.config_frame.winfo_children():
+            if isinstance(widget, ctk.CTkFrame):
+                for child in widget.winfo_children():
+                    if isinstance(child, ctk.CTkLabel):
+                        text = child.cget("text")
+                        if text in ["Idioma:", "Language:"]:
+                            child.configure(text=self.localization.t("language"))
+                        elif text in ["Entrada MIDI:", "MIDI Input:"]:
+                            child.configure(text=self.localization.t("input_midi"))
+                        elif text in ["Salida MIDI:", "MIDI Output:"]:
+                            child.configure(text=self.localization.t("output_midi"))
+        
+        # Actualizar controles (solo lo esencial)
+        self.controls_panel.update_all_texts_fast()
 
 
 
@@ -386,10 +428,6 @@ class MidiBridgeApp(ctk.CTk):
         self.learn_btn.configure(text=self.localization.t("learn_controls"), fg_color="orange")
         self.controls_panel.refresh_all_switches()
         self.console_panel.log("Modo aprendizaje cancelado")
-
-    def update_learning_ui(self):
-        """Actualiza la UI según el estado de aprendizaje"""
-        self.controls_panel.update_learning_ui(self.learning_manager)
 
     def save_configuration(self):
         """Guarda la configuración actual"""

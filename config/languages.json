@@ -1,6 +1,6 @@
 {
   "es": {
-    "app_title": "Mvave MIDI Bridge",
+    "app_title": "Bluetooth MIDI Bridge",
     "input_midi": "Entrada MIDI:",
     "output_midi": "Salida MIDI:",
     "connect": "Conectar",
@@ -12,8 +12,8 @@
     "input_cc": "CC Entrada:",
     "output_cc": "CC Salida:",
     "mode": "Modo:",
-    "toggle": "Toggle",
-    "momentary": "Momentary",
+    "toggle": "Alternar",
+    "momentary": "Momentáneo",
     "debug_console": "Consola de depuración:",
     "learn_mode_active": "MODO APRENDIZAJE ACTIVADO - CC ENTRADA",
     "learn_instructions": "Haz clic en un botón de la interfaz y luego presiona el control físico que quieres asignar",
@@ -27,7 +27,7 @@
     "language": "Idioma:"
   },
   "en": {
-    "app_title": "Mvave MIDI Bridge",
+    "app_title": "Bluetooth MIDI Bridge",
     "input_midi": "MIDI Input:",
     "output_midi": "MIDI Output:",
     "connect": "Connect",
