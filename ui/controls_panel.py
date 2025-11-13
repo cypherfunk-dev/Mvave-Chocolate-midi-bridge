@@ -104,12 +104,6 @@ class ControlsPanel(ctk.CTkFrame):
         # Actualizar UI del switch
         self.refresh_switch_ui(switch.control_id)
 
-
-
-
-
-
-    
     def delete_switch(self, control_id):
         """Elimina un switch de la interfaz"""
         if control_id in self.switch_frames:
@@ -129,10 +123,6 @@ class ControlsPanel(ctk.CTkFrame):
         self.switches_container.destroy()
         self.switches_container = ctk.CTkFrame(self)
         self.switches_container.pack(fill="x", pady=5)
-    
-
-
-
 
     def refresh_switch_ui(self, control_id):
         """Actualiza la UI de un switch específico - VERSIÓN CORREGIDA"""
@@ -175,27 +165,11 @@ class ControlsPanel(ctk.CTkFrame):
                     state="disabled"  # ← MANTENER DESHABILITADO
                 )
 
-
-
-
-
-
-
-
-
-
-
-
-
     def refresh_all_switches(self):
         """Actualiza todos los switches"""
         for control_id in self.switch_frames:
             self.refresh_switch_ui(control_id)
-    
-
-
-
-
+  
     def update_learning_ui(self, learning_manager):
         """Actualiza la UI según el estado de aprendizaje - VERSIÓN CORREGIDA"""
         for control_id, elements in self.switch_frames.items():
