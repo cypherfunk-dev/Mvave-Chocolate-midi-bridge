@@ -25,11 +25,24 @@ def resource_path(relative_path):
 
 
 
+ctk.set_appearance_mode("dark")  # o "light" o "system"
+
+# Ruta al tema personalizado (por ejemplo, themes/custom_theme.json)
+theme_path = os.path.join(os.path.dirname(__file__), "..", "config", "custom_theme.json")
+ctk.set_default_color_theme(theme_path)
+
+
+
+
 class MidiBridgeApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Bluetooth MIDI Bridge")
-        self.geometry("800x750")
+
+        self.styles = self.load_styles()
+
+
+        self.title(self.styles["window"]["title"])
+        self.geometry(self.styles["window"]["geometry"])
         self.iconbitmap(resource_path("assets/icon.ico"))  # importante: ruta válida al ícono
 
         
@@ -52,23 +65,25 @@ class MidiBridgeApp(ctk.CTk):
     def build_ui(self):
         """Construye la interfaz principal"""
         # Frame principal
-        main_frame = ctk.CTkFrame(self)
-        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        main_frame = ctk.CTkFrame(self, corner_radius=2)
+        main_frame.pack(fill="both", expand=True, padx=8, pady=8)  # Reducido padding
 
         # Título
         ctk.CTkLabel(main_frame, text=self.localization.t("app_title"), 
-                    font=("Arial", 20, "bold")).pack(pady=10)
+                    font=("Arial", 20, "bold")).pack(pady=8)
 
         # Panel de configuración
-        self.config_frame = ctk.CTkFrame(main_frame)
-        self.config_frame.pack(pady=10, padx=10, fill="x")
+        self.config_frame = ctk.CTkFrame(main_frame, corner_radius=2)
+        self.config_frame.pack(pady=8, padx=8, fill="x")
         self.build_configuration_panel()
 
-        # Panel de controles MIDI
+        # Panel de controles MIDI - ¡PASAR LOS ESTILOS!
         self.controls_panel = ControlsPanel(
-            self.config_frame, self.localization, 
+            self.config_frame, 
+            self.localization, 
             self.on_learn_request, 
-            self.on_delete_switch
+            self.on_delete_switch,
+            self.styles  # ← ESTA LÍNEA FALTA
         )
         self.controls_panel.pack(fill="x", pady=5)
 
@@ -77,7 +92,7 @@ class MidiBridgeApp(ctk.CTk):
             self.config_frame, 
             text=f"+ {self.localization.t('add_switch')}", 
             command=self.add_new_switch, 
-            fg_color="green"
+            fg_color=self.styles["buttons"]["add_switch"]["fg_color"]  # ← De JSON
         )
         self.add_switch_btn.pack(pady=10)
         self.update_add_button_state()
@@ -86,72 +101,120 @@ class MidiBridgeApp(ctk.CTk):
         self.console_panel = ConsolePanel(main_frame, self.localization)
         self.console_panel.pack(fill="both", expand=True, pady=10, padx=10)
 
+
+
+
     def build_configuration_panel(self):
         """Construye el panel de configuración"""
-        # Fila 1: Idioma
+        # Fila 1: Idioma - corner_radius mínimo
         row1_frame = ctk.CTkFrame(self.config_frame)
-        row1_frame.pack(fill="x", pady=5)
-
-        ctk.CTkLabel(row1_frame, text=self.localization.t("language")).pack(side="left", padx=5)
+        row1_frame.pack(fill="x", pady=4)
         self.language_menu = ctk.CTkOptionMenu(
             row1_frame, 
             values=["es", "en"], 
-            command=self.change_language
+            command=self.change_language,
+            width=60,
+            height=28,
+            corner_radius=2
         )
         self.language_menu.set(self.localization.current_language)
-        self.language_menu.pack(side="left", padx=5)
+        self.language_menu.pack(side="right", padx=6)
 
-        # Fila 2: Puertos MIDI
-        row2_frame = ctk.CTkFrame(self.config_frame)
-        row2_frame.pack(fill="x", pady=5)
+        # Fila 2: Puertos MIDI - INPUT IZQUIERDA, OUTPUT DERECHA
+        row2_frame = ctk.CTkFrame(self.config_frame, corner_radius=2)
+        row2_frame.pack(fill="x", pady=(20, 25))
 
-        ctk.CTkLabel(row2_frame, text=self.localization.t("input_midi")).pack(side="left", padx=5)
-        self.input_menu = ctk.CTkOptionMenu(row2_frame, values=self.get_input_ports())
-        self.input_menu.pack(side="left", padx=5)
-
-        ctk.CTkLabel(row2_frame, text=self.localization.t("output_midi")).pack(side="left", padx=(20, 5))
-        self.output_menu = ctk.CTkOptionMenu(row2_frame, values=self.get_output_ports())
-        self.output_menu.pack(side="left", padx=5)
-
-        # Fila 3: Botones de conexión y aprendizaje
-        row3_frame = ctk.CTkFrame(self.config_frame)
-        row3_frame.pack(fill="x", pady=5)
-
-        self.connect_btn = ctk.CTkButton(
-            row3_frame, 
-            text=self.localization.t("connect"), 
-            command=self.toggle_connection
+        # MIDI INPUT - ALINEADO A LA IZQUIERDA
+        input_container = ctk.CTkFrame(row2_frame, fg_color="transparent")
+        input_container.pack(side="left", padx=6)
+        
+        ctk.CTkLabel(input_container, text=self.localization.t("input_midi")).pack(side="left", padx=(0, 6))
+        self.input_menu = ctk.CTkOptionMenu(
+            input_container, 
+            values=self.get_input_ports(),
+            width=180,
+            height=28,
+            corner_radius=2
         )
-        self.connect_btn.pack(side="left", padx=5)
+        self.input_menu.pack(side="left")
+
+        # MIDI OUTPUT - ALINEADO A LA DERECHA
+        output_container = ctk.CTkFrame(row2_frame, fg_color="transparent")
+        output_container.pack(side="right", padx=6)
+        
+        ctk.CTkLabel(output_container, text=self.localization.t("output_midi")).pack(side="left", padx=(0, 6))
+        self.output_menu = ctk.CTkOptionMenu(
+            output_container, 
+            values=self.get_output_ports(),
+            width=180,
+            height=28,
+            corner_radius=2
+        )
+        self.output_menu.pack(side="left")
+
+        # Fila 3: Botones CONECTAR/APRENDER - CENTRADOS
+        row3_frame = ctk.CTkFrame(self.config_frame, corner_radius=2, fg_color="transparent")
+        row3_frame.pack(fill="x", pady=4)
+        
+        # Contenedor interno para centrar botones
+        button_container1 = ctk.CTkFrame(row3_frame, fg_color="transparent")
+        button_container1.pack(expand=True, anchor="center")
+        
+        self.connect_btn = ctk.CTkButton(
+            button_container1, 
+            text=self.localization.t("connect"), 
+            command=self.toggle_connection,
+            width=120,
+            height=32,
+            corner_radius=4
+        )
+        self.connect_btn.pack(side="left", padx=6)
 
         self.learn_btn = ctk.CTkButton(
-            row3_frame, 
+            button_container1, 
             text=self.localization.t("learn_controls"), 
             command=self.toggle_learning_mode,
-            fg_color="orange", 
-            state="disabled"
+            fg_color=self.styles["buttons"]["learn"]["inactive_fg_color"],
+            state="disabled",
+            width=120,
+            height=32,
+            corner_radius=4
         )
-        self.learn_btn.pack(side="left", padx=5)
+        self.learn_btn.pack(side="left", padx=6)
 
-        # Fila 4: Botones de configuración
-        row4_frame = ctk.CTkFrame(self.config_frame)
-        row4_frame.pack(fill="x", pady=5)
+        # Fila 4: Botones GUARDAR/CARGAR - CENTRADOS
+        row4_frame = ctk.CTkFrame(self.config_frame, corner_radius=2, fg_color="transparent")
+        row4_frame.pack(fill="x", pady=25)
+        
+        # Contenedor interno para centrar botones
+        button_container2 = ctk.CTkFrame(row4_frame, fg_color="transparent")
+        button_container2.pack(expand=True, anchor="center")
 
         self.save_btn = ctk.CTkButton(
-            row4_frame, 
+            button_container2, 
             text=self.localization.t("save_config"), 
             command=self.save_configuration,
-            fg_color="green"
+            fg_color=self.styles["buttons"]["save"]["fg_color"],
+            width=120,
+            height=32,
+            corner_radius=4
         )
-        self.save_btn.pack(side="left", padx=5)
+        self.save_btn.pack(side="left", padx=6)
 
         self.load_btn = ctk.CTkButton(
-            row4_frame, 
+            button_container2, 
             text=self.localization.t("load_config"), 
             command=self.load_configuration,
-            fg_color="blue"
+            fg_color=self.styles["buttons"]["load"]["fg_color"],
+            width=120,
+            height=32,
+            corner_radius=4
         )
-        self.load_btn.pack(side="left", padx=5)
+        self.load_btn.pack(side="left", padx=6)
+
+
+
+
 
     def get_input_ports(self):
         """Obtiene lista de puertos de entrada truncados"""
@@ -175,6 +238,63 @@ class MidiBridgeApp(ctk.CTk):
             self.localization.current_language = language
             self.update_ui_texts()
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def load_styles(self):
+        """Carga los estilos desde el archivo JSON"""
+        try:
+            styles_path = resource_path("config/styles.json")
+            with open(styles_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error cargando estilos: {e}")
+            return self.get_default_styles()
+
+    def get_default_styles(self):
+        """Proporciona estilos por defecto si no se puede cargar el JSON"""
+        return {
+            "window": {
+                "title": "Bluetooth MIDI Bridge",
+                "geometry": "800x750",
+                "icon": "assets/icon.ico"
+            },
+            "buttons": {
+                "connect": {
+                    "connected_fg_color": "red",
+                    "disconnected_fg_color": "green"
+                },
+                "learn": {
+                    "active_fg_color": "red", 
+                    "inactive_fg_color": "#FEF6C9"
+                },
+                "add_switch": {
+                    "fg_color": "green"
+                },
+                "save": {
+                    "fg_color": "green"
+                },
+                "load": {
+                    "fg_color": "blue"
+                }
+            }
+            # Puedes agregar más estilos por defecto aquí
+        }
+
+
+
+
     def rebuild_ui(self):
         """Reconstruye completamente la interfaz"""
         # Guardar estado actual
@@ -193,7 +313,10 @@ class MidiBridgeApp(ctk.CTk):
         # Restaurar estado de conexión
         if was_connected:
             self.connect_btn.configure(text=self.localization.t("disconnect"), fg_color="red")
-            self.learn_btn.configure(state="normal")
+            self.learn_btn.configure(
+                state="normal",
+                    fg_color=self.styles["buttons"]["learn"]["ready_fg_color"]
+        )
 
 
 
@@ -294,6 +417,9 @@ class MidiBridgeApp(ctk.CTk):
         else:
             self.disconnect_ports()
 
+
+
+
     def connect_ports(self):
         """Conecta a los puertos MIDI"""
         input_port = self.input_menu.get()
@@ -301,20 +427,49 @@ class MidiBridgeApp(ctk.CTk):
         
         if self.midi_manager.connect_ports(input_port, output_port, self.on_midi_message):
             self.is_connected = True
-            self.connect_btn.configure(text=self.localization.t("disconnect"), fg_color="red")
-            self.learn_btn.configure(state="normal")
+            self.connect_btn.configure(
+                text=self.localization.t("disconnect"), 
+                fg_color=self.styles["buttons"]["connect"]["connected_fg_color"]
+            )
+            # CAMBIAR: Usar el mismo color que Load Config
+            self.learn_btn.configure(
+                state="normal",
+                fg_color=self.styles["buttons"]["load"]["fg_color"]  # ← Mismo color que Load Config
+            )
             self.console_panel.log(f"Conectado a {input_port} → {output_port}")
+            return True
         else:
             self.console_panel.log("Error al conectar puertos MIDI")
+            return False
+
+
+
+
+
+
+
 
     def disconnect_ports(self):
         """Desconecta los puertos MIDI"""
         self.midi_manager.disconnect_ports()
         self.is_connected = False
-        self.connect_btn.configure(text=self.localization.t("connect"), fg_color="green")
-        self.learn_btn.configure(state="disabled")
+        self.connect_btn.configure(
+            text=self.localization.t("connect"), 
+            fg_color=self.styles["buttons"]["connect"]["disconnected_fg_color"]
+        )
+        # CAMBIAR: Volver al color original cuando está desconectado
+        self.learn_btn.configure(
+            state="disabled",
+            fg_color=self.styles["buttons"]["learn"]["inactive_fg_color"]  # ← Color original deshabilitado
+        )
         self.learning_manager.cancel_learning()
         self.console_panel.log("Puertos MIDI desconectados")
+
+
+
+
+
+
 
     def on_midi_message(self, msg):
         """Maneja mensajes MIDI entrantes"""
@@ -359,8 +514,11 @@ class MidiBridgeApp(ctk.CTk):
         self.learning_manager.learning_cc_out = False
         self.learning_manager.learning_mode = False
 
-        # ACTUALIZAR BOTÓN PRINCIPAL también
-        self.learn_btn.configure(text=self.localization.t("learn_controls"), fg_color="orange")
+        # CAMBIAR: Usar el mismo color que Load Config
+        self.learn_btn.configure(
+            text=self.localization.t("learn_controls"), 
+            fg_color=self.styles["buttons"]["load"]["fg_color"]  # ← Mismo color que Load Config
+        )
         
         # ACTUALIZACIÓN COMPLETA DE LA UI
         self.controls_panel.refresh_all_switches()
@@ -446,7 +604,10 @@ class MidiBridgeApp(ctk.CTk):
             self.learning_manager.learning_mode = True
             self.learning_manager.learning_cc_out = False
             self.learning_manager.learning_control_id = None  # ← Asegurar que empiece sin control específico
-            self.learn_btn.configure(text=self.localization.t("cancel_learn"), fg_color="red")
+            self.learn_btn.configure(
+                text=self.localization.t("cancel_learn"), 
+                fg_color=self.styles["buttons"]["learn"]["active_fg_color"]  # ← De JSON
+            )
             self.console_panel.log(self.localization.t("learn_mode_active"))
             self.console_panel.log(self.localization.t("learn_instructions"))
             self.update_learning_ui()
@@ -459,7 +620,10 @@ class MidiBridgeApp(ctk.CTk):
     def cancel_learning_mode(self):
         """Cancela el modo aprendizaje COMPLETAMENTE"""
         self.learning_manager.cancel_learning()
-        self.learn_btn.configure(text=self.localization.t("learn_controls"), fg_color="orange")
+        self.learn_btn.configure(
+            text=self.localization.t("learn_controls"), 
+            fg_color=self.styles["buttons"]["learn"]["inactive_fg_color"]  # ← Color normal
+        )
         self.console_panel.log("Modo aprendizaje cancelado")
         # Actualizar UI inmediatamente
         self.controls_panel.refresh_all_switches()

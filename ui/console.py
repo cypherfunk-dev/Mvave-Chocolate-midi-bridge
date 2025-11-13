@@ -8,8 +8,7 @@ class ConsolePanel(ctk.CTkFrame):
         self.build_ui()
     
     def build_ui(self):
-        ctk.CTkLabel(self, text=self.localization.t("debug_console"), anchor="w").pack(fill="x")
-        self.console = scrolledtext.ScrolledText(self, height=10, state="disabled", bg="#111", fg="#0f0")
+        self.console = scrolledtext.ScrolledText(self, height=10, state="disabled", bg="#2b2b2b", fg="#D4DFC7")
         self.console.pack(fill="both", expand=True)
     
     def log(self, message):

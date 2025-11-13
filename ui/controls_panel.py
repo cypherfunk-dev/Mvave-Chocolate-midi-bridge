@@ -2,34 +2,31 @@ import customtkinter as ctk
 from models.switch import MidiSwitch
 
 class ControlsPanel(ctk.CTkFrame):
-    def __init__(self, parent, localization, on_learn_callback, on_delete_callback):
+    def __init__(self, parent, localization, on_learn_callback, on_delete_callback, styles):
         super().__init__(parent)
         self.localization = localization
         self.on_learn_callback = on_learn_callback
         self.on_delete_callback = on_delete_callback
+        self.styles = styles  # ← Recibir estilos
         self.switch_frames = {}
-        self.build_ui()
+        self.build_ui()  # ← Esto se queda igual, pero ahora styles está disponible
     
     def build_ui(self):
         """Construye la interfaz del panel de controles"""
         # Frame para contener los switches
-        self.switches_container = ctk.CTkFrame(self)
-        self.switches_container.pack(fill="x", pady=5)
-    
-
-
-
+        self.switches_container = ctk.CTkFrame(self, border_width=1, corner_radius=2)
+        self.switches_container.pack(fill="x", pady=5)  
 
     def add_switch(self, switch):
         """Agrega un switch a la interfaz"""
-        frame = ctk.CTkFrame(self.switches_container)
+        frame = ctk.CTkFrame(self.switches_container, border_width=1, corner_radius=2)
         frame.pack(pady=5, padx=10, fill="x")
         
         # Botón principal del switch
         btn = ctk.CTkButton(
             frame, 
             text=f"{self.localization.t('switch')} {switch.switch_number}", 
-            fg_color="gray",
+            fg_color=self.styles["switch_states"]["unassigned"],  # ← De JSON
             state="disabled",
             command=lambda sid=switch.control_id: self.on_learn_callback(sid, False)
         )
@@ -61,15 +58,6 @@ class ControlsPanel(ctk.CTkFrame):
         )
         mode_menu.pack(side="right", padx=5)
         
-        # ❌ ELIMINAR ESTO - ESTÁ DUPLICADO:
-        # # Selector de modo
-        # mode_menu = ctk.CTkOptionMenu(
-        #     frame, 
-        #     values=[self.localization.t("toggle"), self.localization.t("momentary")], 
-        #     variable=switch.mode_var
-        # )
-        # mode_menu.pack(side="right", padx=5)
-        
         # Campo CC Entrada
         ctk.CTkLabel(frame, text=self.localization.t("input_cc")).pack(side="left", padx=(10, 2))
         entry_cc = ctk.CTkEntry(frame, width=100, textvariable=switch.input_cc_var, state="readonly")
@@ -86,7 +74,7 @@ class ControlsPanel(ctk.CTkFrame):
                 frame, 
                 text=self.localization.t("delete"), 
                 width=60, 
-                fg_color="red",
+                fg_color=self.styles["buttons"]["delete"]["fg_color"],  # ← De JSON
                 command=lambda sid=switch.control_id: self.on_delete_callback(sid)
             )
             delete_btn.pack(side="left", padx=5)
@@ -124,8 +112,9 @@ class ControlsPanel(ctk.CTkFrame):
         self.switches_container = ctk.CTkFrame(self)
         self.switches_container.pack(fill="x", pady=5)
 
+
+
     def refresh_switch_ui(self, control_id):
-        """Actualiza la UI de un switch específico - VERSIÓN CORREGIDA"""
         if control_id in self.switch_frames:
             elements = self.switch_frames[control_id]
             switch = elements['switch']
@@ -140,30 +129,36 @@ class ControlsPanel(ctk.CTkFrame):
                 if cc_num < 0 or cc_num > 127:
                     is_assigned = False
             except ValueError:
-                # Si no es número, verificar si es el texto de "no asignado"
                 if input_cc_value == not_assigned_text:
                     is_assigned = False
                 else:
-                    # Si es otro texto, tratarlo como no asignado
                     is_assigned = False
-                    # Y actualizar al texto correcto
                     switch.input_cc_var.set(not_assigned_text)
             
-            # MANTENER ESTADO DISABLED (no cambiar a "normal")
             if not is_assigned:
                 elements['button'].configure(
                     text=f"{self.localization.t('switch')} {switch.switch_number}",
-                    fg_color="gray",
-                    state="disabled"  # ← MANTENER DESHABILITADO
+                    fg_color=self.styles["switch_states"]["unassigned"],  # ← De JSON
+                    state="disabled"
                 )
             else:
-                color = "green" if switch.state else "red"
+                # Usar colores del JSON según el estado
+                color = self.styles["switch_states"]["assigned_on"] if switch.state else self.styles["switch_states"]["assigned_off"]  # ← De JSON
                 btn_text = f"CC{input_cc_value}→CC{switch.output_cc_var.get()}: {'ON' if switch.state else 'OFF'}"
                 elements['button'].configure(
                     text=btn_text,
                     fg_color=color,
-                    state="disabled"  # ← MANTENER DESHABILITADO
+                    state="disabled"
                 )
+
+
+
+
+
+
+
+
+
 
     def refresh_all_switches(self):
         """Actualiza todos los switches"""
@@ -171,28 +166,32 @@ class ControlsPanel(ctk.CTkFrame):
             self.refresh_switch_ui(control_id)
   
     def update_learning_ui(self, learning_manager):
-        """Actualiza la UI según el estado de aprendizaje - VERSIÓN CORREGIDA"""
         for control_id, elements in self.switch_frames.items():
             btn = elements['button']
 
             if learning_manager.learning_mode:
-                # MODO APRENDIZAJE ACTIVO - botones clickeables
                 btn.configure(state="normal")
 
                 if (learning_manager.learning_control_id == control_id 
                     and learning_manager.learning_control_id is not None):
-                    # Este es el botón que está siendo aprendido actualmente
                     if learning_manager.learning_cc_out:
-                        btn.configure(text="¡Presiona CC salida!", fg_color="purple")
+                        btn.configure(
+                            text="¡Presiona CC salida!", 
+                            fg_color=self.styles["learning_mode"]["waiting_button"]  # ← De JSON
+                        )
                     else:
-                        btn.configure(text="¡Presiona control físico!", fg_color="yellow")
+                        btn.configure(
+                            text="¡Presiona control físico!", 
+                            fg_color=self.styles["learning_mode"]["active_button"]  # ← De JSON
+                        )
                 else:
-                    # Estos son los otros botones (disponibles para aprender)
-                    btn.configure(text="Click para aprender", fg_color="orange")
+                    btn.configure(
+                        text="Click para aprender", 
+                        fg_color=self.styles["learning_mode"]["available_button"]  # ← De JSON
+                    )
             else:
-                # MODO APRENDIZAJE INACTIVO - botones NO clickeables
-                btn.configure(state="disabled")  # ← ESTA LÍNEA ES CLAVE
-                self.refresh_switch_ui(control_id)  # ← Esto actualiza colores normales
+                btn.configure(state="disabled")
+                self.refresh_switch_ui(control_id)
 
 
 

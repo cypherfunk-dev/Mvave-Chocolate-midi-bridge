@@ -1,0 +1,69 @@
+{
+  "window": {
+    "title": "Bluetooth MIDI Bridge",
+    "geometry": "800x750",
+    "icon": "assets/icon.ico"
+  },
+  "theme": {
+    "fg_color": "#2b2b2b",
+    "hover_color": "#878E88",
+    "text_color": "#FEF6C9",
+    "border_color": "#96C0B7",
+    "highlight": "#D4DFC7",
+    "danger": "#C96C6C"
+  },
+  "colors": {
+    "primary": "#2b2b2b",
+    "secondary": "#878E88",
+    "success": "#96C0B7",
+    "warning": "#FEF6C9",
+    "danger": "#C96C6C",
+    "info": "#D4DFC7",
+    "disabled": "#4a4a4a"
+  },
+  "buttons": {
+    "connect": {
+      "connected_fg_color": "#C96C6C",
+      "disconnected_fg_color": "#96C0B7"
+    },
+    "learn": {
+      "active_fg_color": "#96C0B7",
+      "inactive_fg_color": "#878E88",
+      "ready_fg_color": "#FFD166"
+
+    },
+    "add_switch": {
+      "fg_color": "#96C0B7"
+    },
+    "save": {
+      "fg_color": "#96C0B7"
+    },
+    "load": {
+      "fg_color": "#D4DFC7"
+    },
+    "delete": {
+      "fg_color": "#C96C6C"
+    }
+  },
+  "switch_states": {
+    "assigned_on": "#96C0B7",
+    "assigned_off": "#C96C6C",
+    "unassigned": "#878E88"
+  },
+  "learning_mode": {
+    "active_button": "#FEF6C9",
+    "waiting_button": "#96C0B7",
+    "available_button": "#D4DFC7"
+  },
+  "fonts": {
+    "title": ["Arial", 20, "bold"],
+    "normal": ["Arial", 12],
+    "small": ["Arial", 10]
+  },
+  "layout": {
+    "padding": {
+      "main": 10,
+      "internal": 5
+    }
+  }
+}
