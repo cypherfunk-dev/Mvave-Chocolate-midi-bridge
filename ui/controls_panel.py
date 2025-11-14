@@ -7,15 +7,15 @@ class ControlsPanel(ctk.CTkFrame):
         self.localization = localization
         self.on_learn_callback = on_learn_callback
         self.on_delete_callback = on_delete_callback
-        self.styles = styles  # ← Recibir estilos
+        self.styles = styles
         self.switch_frames = {}
-        self.build_ui()  # ← Esto se queda igual, pero ahora styles está disponible
+        self.build_ui()
     
     def build_ui(self):
         """Construye la interfaz del panel de controles"""
         # Frame para contener los switches
         self.switches_container = ctk.CTkFrame(self, border_width=1, corner_radius=2)
-        self.switches_container.pack(fill="x", pady=5)  
+        self.switches_container.pack(fill="x", pady=5)
 
     def add_switch(self, switch):
         """Agrega un switch a la interfaz"""
@@ -26,13 +26,13 @@ class ControlsPanel(ctk.CTkFrame):
         btn = ctk.CTkButton(
             frame, 
             text=f"{self.localization.t('switch')} {switch.switch_number}", 
-            fg_color=self.styles["switch_states"]["unassigned"],  # ← De JSON
+            fg_color=self.styles["switch_states"]["unassigned"],
             state="disabled",
             command=lambda sid=switch.control_id: self.on_learn_callback(sid, False)
         )
         btn.pack(side="left", padx=5, pady=5)
         
-        # ✅ SELECTOR DE MODO (SOLO UNO) - CON TRADUCCIÓN
+        # SELECTOR DE MODO - CON TRADUCCIÓN
         mode_display_values = [self.localization.t("toggle"), self.localization.t("momentary")]
         mode_var = switch.mode_var
 
@@ -74,7 +74,7 @@ class ControlsPanel(ctk.CTkFrame):
                 frame, 
                 text=self.localization.t("delete"), 
                 width=60, 
-                fg_color=self.styles["buttons"]["delete"]["fg_color"],  # ← De JSON
+                fg_color=self.styles["buttons"]["delete"]["fg_color"],
                 command=lambda sid=switch.control_id: self.on_delete_callback(sid)
             )
             delete_btn.pack(side="left", padx=5)
@@ -112,9 +112,8 @@ class ControlsPanel(ctk.CTkFrame):
         self.switches_container = ctk.CTkFrame(self)
         self.switches_container.pack(fill="x", pady=5)
 
-
-
     def refresh_switch_ui(self, control_id):
+        """Actualiza la UI de un switch específico"""
         if control_id in self.switch_frames:
             elements = self.switch_frames[control_id]
             switch = elements['switch']
@@ -122,7 +121,7 @@ class ControlsPanel(ctk.CTkFrame):
             input_cc_value = switch.input_cc_var.get()
             not_assigned_text = self.localization.t("not_assigned")
             
-            # ✅ Verificar si es un número CC válido
+            # Verificar si es un número CC válido
             is_assigned = True
             try:
                 cc_num = int(input_cc_value)
@@ -138,27 +137,20 @@ class ControlsPanel(ctk.CTkFrame):
             if not is_assigned:
                 elements['button'].configure(
                     text=f"{self.localization.t('switch')} {switch.switch_number}",
-                    fg_color=self.styles["switch_states"]["unassigned"],  # ← De JSON
+                    fg_color=self.styles["switch_states"]["unassigned"],
                     state="disabled"
                 )
             else:
                 # Usar colores del JSON según el estado
-                color = self.styles["switch_states"]["assigned_on"] if switch.state else self.styles["switch_states"]["assigned_off"]  # ← De JSON
-                btn_text = f"CC{input_cc_value}→CC{switch.output_cc_var.get()}: {'ON' if switch.state else 'OFF'}"
+                color = self.styles["switch_states"]["assigned_on"] if switch.state else self.styles["switch_states"]["assigned_off"]
+                on_text = self.localization.t("on")
+                off_text = self.localization.t("off")
+                btn_text = f"CC{input_cc_value}→CC{switch.output_cc_var.get()}: {on_text if switch.state else off_text}"
                 elements['button'].configure(
                     text=btn_text,
                     fg_color=color,
                     state="disabled"
                 )
-
-
-
-
-
-
-
-
-
 
     def refresh_all_switches(self):
         """Actualiza todos los switches"""
@@ -166,6 +158,7 @@ class ControlsPanel(ctk.CTkFrame):
             self.refresh_switch_ui(control_id)
   
     def update_learning_ui(self, learning_manager):
+        """Actualiza la UI durante el modo aprendizaje"""
         for control_id, elements in self.switch_frames.items():
             btn = elements['button']
 
@@ -176,35 +169,29 @@ class ControlsPanel(ctk.CTkFrame):
                     and learning_manager.learning_control_id is not None):
                     if learning_manager.learning_cc_out:
                         btn.configure(
-                            text="¡Presiona CC salida!", 
-                            fg_color=self.styles["learning_mode"]["waiting_button"]  # ← De JSON
+                            text=self.localization.t("press_output_cc"),  # ← CAMBIADO
+                            fg_color=self.styles["learning_mode"]["waiting_button"]
                         )
                     else:
                         btn.configure(
-                            text="¡Presiona control físico!", 
-                            fg_color=self.styles["learning_mode"]["active_button"]  # ← De JSON
+                            text=self.localization.t("press_physical_control"),  # ← CAMBIADO
+                            fg_color=self.styles["learning_mode"]["active_button"]
                         )
                 else:
                     btn.configure(
-                        text="Click para aprender", 
-                        fg_color=self.styles["learning_mode"]["available_button"]  # ← De JSON
+                        text=self.localization.t("click_to_learn"),  # ← CAMBIADO
+                        fg_color=self.styles["learning_mode"]["available_button"]
                     )
             else:
                 btn.configure(state="disabled")
                 self.refresh_switch_ui(control_id)
-
-
-
-
-
- 
 
     def update_all_texts_fast(self):
         """Actualiza solo los textos esenciales - MÁXIMA VELOCIDAD"""
         for control_id, elements in self.switch_frames.items():
             switch = elements['switch']
             
-            # Solo OptionMenu (lo más importante)
+            # Actualizar OptionMenu
             mode_menu = elements['mode_menu']
             current_internal_value = switch.mode_var.get()
             new_values = [self.localization.t("toggle"), self.localization.t("momentary")]
@@ -216,6 +203,20 @@ class ControlsPanel(ctk.CTkFrame):
             
             mode_menu.configure(values=new_values)
             mode_menu.set(current_display_value)
+            
+            # Actualizar etiquetas de CC
+            for widget in elements['frame'].winfo_children():
+                if isinstance(widget, ctk.CTkLabel):
+                    text = widget.cget("text")
+                    if text in ["CC Entrada:", "Input CC:"]:
+                        widget.configure(text=self.localization.t("input_cc"))
+                    elif text in ["CC Salida:", "Output CC:"]:
+                        widget.configure(text=self.localization.t("output_cc"))
+            
+            # Actualizar botón de eliminar si existe
+            for widget in elements['frame'].winfo_children():
+                if isinstance(widget, ctk.CTkButton) and widget.cget("text") in ["Eliminar", "Delete"]:
+                    widget.configure(text=self.localization.t("delete"))
             
             # Refrescar switch (actualiza el botón principal)
             self.refresh_switch_ui(control_id)

@@ -9,6 +9,7 @@ from midi.learning import LearningManager
 from ui.midi_ports import MidiPortsPanel
 from ui.controls_panel import ControlsPanel
 from ui.console import ConsolePanel
+from ui.gradient_banner import create_animated_banner, GradientBanner
 from utils.file_utils import FileManager
 from models.configuration import AppConfiguration
 from models.switch import MidiSwitch
@@ -38,14 +39,8 @@ class MidiBridgeApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.styles = self.load_styles()
+        self.animated_banner = None
 
-
-        self.title(self.styles["window"]["title"])
-        self.geometry(self.styles["window"]["geometry"])
-        self.iconbitmap(resource_path("assets/icon.ico"))  # importante: ruta válida al ícono
-
-        
         # Inicializar componentes
         self.localization = Localization()
         self.midi_manager = MidiManager()
@@ -54,19 +49,48 @@ class MidiBridgeApp(ctk.CTk):
         self.settings = AppSettings()
         self.configuration = AppConfiguration()
         
+
+        # Cargar estilos desde JSON
+        self.app_styles = self.load_app_styles()
+
+
+        self.title(self.app_styles["window"]["title"])
+        self.geometry(self.app_styles["window"]["geometry"])
+        self.iconbitmap(resource_path("assets/icon.ico"))  # importante: ruta válida al ícono
+
+
+
         # Estado de la aplicación
         self.switches = {}
         self.is_connected = False
         
-        self.build_ui()
+        self.build_ui_with_banner()
         self.initialize_default_switches()
         self.load_configuration_auto()
     
+    def build_ui_with_banner(self):
+        """Construye la interfaz con banner gradiente"""
+        # Frame principal
+        main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Crear banner animado (elige el tipo: "breathing", "shifting", "wave")
+        banner_frame, self.animated_banner = create_animated_banner(
+            main_frame, 
+            animation_type="breathing"  # ← Elige tu animación favorita
+        )
+
+        # Contenido principal (tu UI existente)
+        content_frame = ctk.CTkFrame(main_frame, corner_radius=0)
+        content_frame.pack(fill="both", expand=True, padx=0, pady=0)
+        
+        self.build_main_content(content_frame)
+
     def build_ui(self):
         """Construye la interfaz principal"""
         # Frame principal
-        main_frame = ctk.CTkFrame(self, corner_radius=2)
-        main_frame.pack(fill="both", expand=True, padx=8, pady=8)  # Reducido padding
+        main_frame = ctk.CTkFrame(self)
+        main_frame.pack(fill="both", expand=True, padx=8, pady=8)
 
         # Título
         ctk.CTkLabel(main_frame, text=self.localization.t("app_title"), 
@@ -83,27 +107,51 @@ class MidiBridgeApp(ctk.CTk):
             self.localization, 
             self.on_learn_request, 
             self.on_delete_switch,
-            self.styles  # ← ESTA LÍNEA FALTA
+            self.app_styles
         )
         self.controls_panel.pack(fill="x", pady=5)
 
-        # Botón agregar switch
+        # Botón agregar switch con manejo seguro
+        add_switch_style = self.app_styles.get("buttons", {}).get("add_switch", {})
         self.add_switch_btn = ctk.CTkButton(
             self.config_frame, 
             text=f"+ {self.localization.t('add_switch')}", 
             command=self.add_new_switch, 
-            fg_color=self.styles["buttons"]["add_switch"]["fg_color"]  # ← De JSON
+            fg_color=add_switch_style.get("fg_color", "#28a745")
         )
         self.add_switch_btn.pack(pady=10)
         self.update_add_button_state()
+
 
         # Consola
         self.console_panel = ConsolePanel(main_frame, self.localization)
         self.console_panel.pack(fill="both", expand=True, pady=10, padx=10)
 
+    def create_header_banner(self, parent):
+        """Crea el banner header con animación"""
+        banner_frame = ctk.CTkFrame(parent, height=120, corner_radius=0)
+        banner_frame.pack(fill="x", padx=0, pady=0)
+        banner_frame.pack_propagate(False)
+        
+        # Crear gradiente inicial
+        self.setup_banner_gradient(banner_frame)
 
+        # Título CENTRADO exacto
+        title_label = ctk.CTkLabel(
+            banner_frame,
+            text="BLUETOOTH MIDI BRIDGE",
+            font=("Arial", 28, "bold"),
+            text_color="#F6F0ED",
+            bg_color="transparent"
+        )
+        title_label.place(relx=0.5, rely=0.5, anchor="center")
 
-
+        
+        # Iniciar animación cuando la ventana esté lista
+        self.after(1000, self.start_banner_animation, banner_frame)
+        
+        return banner_frame
+    
     def build_configuration_panel(self):
         """Construye el panel de configuración"""
         # Fila 1: Idioma - corner_radius mínimo
@@ -174,7 +222,7 @@ class MidiBridgeApp(ctk.CTk):
             button_container1, 
             text=self.localization.t("learn_controls"), 
             command=self.toggle_learning_mode,
-            fg_color=self.styles["buttons"]["learn"]["inactive_fg_color"],
+            fg_color=self.app_styles["buttons"]["learn"]["inactive_fg_color"],
             state="disabled",
             width=120,
             height=32,
@@ -194,7 +242,7 @@ class MidiBridgeApp(ctk.CTk):
             button_container2, 
             text=self.localization.t("save_config"), 
             command=self.save_configuration,
-            fg_color=self.styles["buttons"]["save"]["fg_color"],
+            fg_color=self.app_styles["buttons"]["save"]["fg_color"],
             width=120,
             height=32,
             corner_radius=4
@@ -205,16 +253,67 @@ class MidiBridgeApp(ctk.CTk):
             button_container2, 
             text=self.localization.t("load_config"), 
             command=self.load_configuration,
-            fg_color=self.styles["buttons"]["load"]["fg_color"],
+            fg_color=self.app_styles["buttons"]["load"]["fg_color"],
             width=120,
             height=32,
             corner_radius=4
         )
         self.load_btn.pack(side="left", padx=6)
 
+    def load_app_styles(self):
+            """Carga los estilos específicos de la aplicación (no el tema CTk)"""
+            try:
+                styles_path = resource_path("config/styles.json")
+                with open(styles_path, 'r', encoding='utf-8') as f:
+                    styles = json.load(f)
+                    
+                # Combinar con valores por defecto
+                default_styles = self.get_default_app_styles()
+                return self.merge_styles(default_styles, styles)
+                
+            except Exception as e:
+                print(f"Error cargando estilos de aplicación: {e}")
+                return self.get_default_app_styles()
 
+    def build_main_content(self, parent):
+            """Construye el contenido principal debajo del banner"""
+            # Frame de contenido
+            content_inner = ctk.CTkFrame(parent, fg_color="transparent")
+            content_inner.pack(fill="both", expand=True, padx=20, pady=20)
 
+            # Título (opcional, ya que el banner tiene el título principal)
+            # ctk.CTkLabel(content_inner, text=self.localization.t("app_title"), 
+            #             font=("Arial", 20, "bold")).pack(pady=8)
 
+            # Panel de configuración
+            self.config_frame = ctk.CTkFrame(content_inner, corner_radius=8)
+            self.config_frame.pack(pady=15, padx=10, fill="x")
+            self.build_configuration_panel()
+
+            # Panel de controles MIDI
+            self.controls_panel = ControlsPanel(
+                self.config_frame, 
+                self.localization, 
+                self.on_learn_request, 
+                self.on_delete_switch,
+                self.app_styles
+            )
+            self.controls_panel.pack(fill="x", pady=10)
+
+            # Botón agregar switch
+            add_switch_style = self.app_styles.get("buttons", {}).get("add_switch", {})
+            self.add_switch_btn = ctk.CTkButton(
+                self.config_frame, 
+                text=f"+ {self.localization.t('add_switch')}", 
+                command=self.add_new_switch, 
+                fg_color=add_switch_style.get("fg_color", "#28a745")
+            )
+            self.add_switch_btn.pack(pady=10)
+            self.update_add_button_state()
+
+            # Consola
+            self.console_panel = ConsolePanel(content_inner, self.localization)
+            self.console_panel.pack(fill="both", expand=True, pady=15, padx=10)
 
     def get_input_ports(self):
         """Obtiene lista de puertos de entrada truncados"""
@@ -238,16 +337,65 @@ class MidiBridgeApp(ctk.CTk):
             self.localization.current_language = language
             self.update_ui_texts()
 
+    def merge_styles(self, default, loaded):
+        """Combina estilos por defecto con los cargados"""
+        result = default.copy()
+        for key, value in loaded.items():
+            if isinstance(value, dict) and key in result:
+                result[key] = self.merge_styles(result[key], value)
+            else:
+                result[key] = value
+        return result
+
+    def get_default_app_styles(self):
+            """Proporciona estilos de aplicación por defecto"""
+            return {
+                "window": {
+                    "title": "Bluetooth MIDI Bridge",
+                    "geometry": "800x750"
+                },
+                "buttons": {
+                    "connect": {
+                        "connected_fg_color": "#dc3545",
+                        "disconnected_fg_color": "#28a745"
+                    },
+                    "learn": {
+                        "active_fg_color": "#dc3545",
+                        "inactive_fg_color": "#6c757d",
+                        "ready_fg_color": "#007bff"
+                    },
+                    "add_switch": {
+                        "fg_color": "#28a745"
+                    },
+                    "save": {
+                        "fg_color": "#28a745"
+                    },
+                    "load": {
+                        "fg_color": "#007bff"
+                    },
+                    "delete": {
+                        "fg_color": "#dc3545"
+                    }
+                },
+                "switch_states": {
+                    "unassigned": "#6c757d",
+                    "assigned_on": "#28a745",
+                    "assigned_off": "#dc3545"
+                },
+                "learning_mode": {
+                    "active_button": "#ffc107",
+                    "waiting_button": "#17a2b8",
+                    "available_button": "#6f42c1"
+                }
+            }
 
 
 
-
-
-
-
-
-
-
+    def on_closing(self):
+        """Método para cerrar la aplicación correctamente"""
+        if self.animated_banner:
+            self.animated_banner.stop_animation()
+        self.destroy()
 
 
 
@@ -315,42 +463,35 @@ class MidiBridgeApp(ctk.CTk):
             self.connect_btn.configure(text=self.localization.t("disconnect"), fg_color="red")
             self.learn_btn.configure(
                 state="normal",
-                    fg_color=self.styles["buttons"]["learn"]["ready_fg_color"]
+                    fg_color=self.app_styles["buttons"]["learn"]["ready_fg_color"]
         )
-
-
-
-
-
 
     def on_learn_request(self, control_id, is_output=False):
         """Maneja solicitud de aprendizaje - VERSIÓN CORREGIDA"""
         self.console_panel.log(f"DEBUG: on_learn_request - control_id: {control_id}, is_output: {is_output}")
         
         if not self.is_connected:
-            self.console_panel.log("Error: Primero debes conectar los puertos MIDI")
+            self.console_panel.log(self.localization.t("error_connect_first"))  # ← CAMBIADO
             return
         
         # Si ya estamos en modo aprendizaje para ESTE control, cancelarlo
         if (self.learning_manager.learning_mode and 
             self.learning_manager.learning_control_id == control_id):
             self.learning_manager.learning_control_id = None
-            self.console_panel.log(f"Aprendizaje cancelado para {control_id}")
+            self.console_panel.log(self.localization.t("learn_cancelled").format(control_id=control_id))  # ← CAMBIADO
             self.update_learning_ui()
             return
         
         # Activar modo aprendizaje para este control específico
-        self.learning_manager.learning_mode = True  # ← Asegurar que el modo global esté activo
+        self.learning_manager.learning_mode = True
         if is_output:
             self.learning_manager.start_learning_output(control_id)
-            self.console_panel.log(f"DEBUG: learning_control_id establecido a: {control_id} (output)")
+            self.console_panel.log(self.localization.t("debug_learning_output").format(control_id=control_id))  # ← CAMBIADO
         else:
             self.learning_manager.start_learning_input(control_id)
-            self.console_panel.log(f"DEBUG: learning_control_id establecido a: {control_id} (input)")
+            self.console_panel.log(self.localization.t("debug_learning_input").format(control_id=control_id))  # ← CAMBIADO
         
         self.update_learning_ui()
-
-
 
 
 
@@ -366,13 +507,17 @@ class MidiBridgeApp(ctk.CTk):
         if control_id in self.switches:
             # No permitir eliminar switches por defecto
             if self.switches[control_id].is_default:
-                self.console_panel.log(f"No se pueden eliminar los primeros {self.settings.DEFAULT_SWITCHES} switches")
+                self.console_panel.log(self.localization.t("cannot_delete_default").format(  # ← CAMBIADO
+                    default_switches=self.settings.DEFAULT_SWITCHES
+                ))
                 return
             
             del self.switches[control_id]
             self.controls_panel.delete_switch(control_id)
             self.update_add_button_state()
-            self.console_panel.log(f"Switch {control_id} eliminado")
+            self.console_panel.log(self.localization.t("switch_deleted").format(control_id=control_id))  # ← CAMBIADO
+
+
 
     def on_mode_change(self, control_id, new_mode):
         """Maneja cambio de modo en un switch"""
@@ -382,7 +527,9 @@ class MidiBridgeApp(ctk.CTk):
     def add_new_switch(self):
         """Agrega un nuevo switch"""
         if len(self.switches) >= self.settings.MAX_SWITCHES:
-            self.console_panel.log(f"Límite máximo alcanzado: {self.settings.MAX_SWITCHES} switches")
+            self.console_panel.log(self.localization.t("max_switches_reached").format(  # ← CAMBIADO
+                max_switches=self.settings.MAX_SWITCHES
+            ))
             return
         
         # Encontrar próximo ID disponible
@@ -395,7 +542,7 @@ class MidiBridgeApp(ctk.CTk):
         self.controls_panel.add_switch(switch)
         self.update_add_button_state()
         
-        self.console_panel.log(f"Nuevo switch agregado: {control_id}")
+        self.console_panel.log(self.localization.t("new_switch_added").format(control_id=control_id))  # ← CAMBIADO
 
     def update_add_button_state(self):
         """Actualiza estado del botón agregar"""
@@ -429,17 +576,18 @@ class MidiBridgeApp(ctk.CTk):
             self.is_connected = True
             self.connect_btn.configure(
                 text=self.localization.t("disconnect"), 
-                fg_color=self.styles["buttons"]["connect"]["connected_fg_color"]
+                fg_color=self.app_styles["buttons"]["connect"]["connected_fg_color"]
             )
-            # CAMBIAR: Usar el mismo color que Load Config
             self.learn_btn.configure(
                 state="normal",
-                fg_color=self.styles["buttons"]["load"]["fg_color"]  # ← Mismo color que Load Config
+                fg_color=self.app_styles["buttons"]["load"]["fg_color"]
             )
-            self.console_panel.log(f"Conectado a {input_port} → {output_port}")
+            self.console_panel.log(self.localization.t("connected_to").format(  # ← CAMBIADO
+                input_port=input_port, output_port=output_port
+            ))
             return True
         else:
-            self.console_panel.log("Error al conectar puertos MIDI")
+            self.console_panel.log(self.localization.t("error_connecting_ports"))  # ← CAMBIADO
             return False
 
 
@@ -455,15 +603,14 @@ class MidiBridgeApp(ctk.CTk):
         self.is_connected = False
         self.connect_btn.configure(
             text=self.localization.t("connect"), 
-            fg_color=self.styles["buttons"]["connect"]["disconnected_fg_color"]
+            fg_color=self.app_styles["buttons"]["connect"]["disconnected_fg_color"]
         )
-        # CAMBIAR: Volver al color original cuando está desconectado
         self.learn_btn.configure(
             state="disabled",
-            fg_color=self.styles["buttons"]["learn"]["inactive_fg_color"]  # ← Color original deshabilitado
+            fg_color=self.app_styles["buttons"]["learn"]["inactive_fg_color"]
         )
         self.learning_manager.cancel_learning()
-        self.console_panel.log("Puertos MIDI desconectados")
+        self.console_panel.log(self.localization.t("ports_disconnected"))  # ← CAMBIADO
 
 
 
@@ -502,28 +649,29 @@ class MidiBridgeApp(ctk.CTk):
             # Aprendiendo CC de salida
             if control_id in self.switches:
                 self.switches[control_id].output_cc_var.set(str(control))
-                self.console_panel.log(f"CC SALIDA para {control_id} asignado a CC{control}")
+                self.console_panel.log(self.localization.t("output_cc_assigned").format(  # ← CAMBIADO
+                    control_id=control_id, control=control
+                ))
         else:
             # Aprendiendo CC de entrada
             if control_id in self.switches:
                 self.switches[control_id].input_cc_var.set(str(control))
-                self.console_panel.log(f"CC ENTRADA para {control_id} asignado a CC{control}")
+                self.console_panel.log(self.localization.t("input_cc_assigned").format(  # ← CAMBIADO
+                    control_id=control_id, control=control
+                ))
         
         # RESET COMPLETO del modo aprendizaje
         self.learning_manager.learning_control_id = None
         self.learning_manager.learning_cc_out = False
         self.learning_manager.learning_mode = False
 
-        # CAMBIAR: Usar el mismo color que Load Config
         self.learn_btn.configure(
             text=self.localization.t("learn_controls"), 
-            fg_color=self.styles["buttons"]["load"]["fg_color"]  # ← Mismo color que Load Config
+            fg_color=self.app_styles["buttons"]["load"]["fg_color"]
         )
         
         # ACTUALIZACIÓN COMPLETA DE LA UI
         self.controls_panel.refresh_all_switches()
-
-
 
 
     def handle_normal_mapping(self, control, value):
@@ -539,14 +687,14 @@ class MidiBridgeApp(ctk.CTk):
                     break
             except ValueError:
                 continue
-    
+
         if not matching_switch:
             return
-    
+
         mode = matching_switch.mode_var.get().lower()
         old_state = matching_switch.state
-    
-    # Lógica de estado
+
+        # Lógica de estado
         if "toggle" in mode:
             # TOGGLE: Solo en press (valor > 0)
             if value > 0:
@@ -565,10 +713,12 @@ class MidiBridgeApp(ctk.CTk):
                 output_cc = int(matching_switch.output_cc_var.get())
                 output_value = 127 if matching_switch.state else 0
                 self.midi_manager.send_cc(output_cc, output_value)
-                self.console_panel.log(f"MIDI OUT: CC{output_cc} = {output_value} ({'ON' if matching_switch.state else 'OFF'})")
+                self.console_panel.log(self.localization.t("midi_out").format(  # ← CAMBIADO
+                    output_cc=output_cc, output_value=output_value, 
+                    state=self.localization.t("on") if matching_switch.state else self.localization.t("off")
+                ))
             except ValueError:
                 pass
-
 
     def update_ui_texts(self):
         """Actualiza solo los textos de la UI - VERSIÓN RÁPIDA"""
@@ -606,7 +756,7 @@ class MidiBridgeApp(ctk.CTk):
             self.learning_manager.learning_control_id = None  # ← Asegurar que empiece sin control específico
             self.learn_btn.configure(
                 text=self.localization.t("cancel_learn"), 
-                fg_color=self.styles["buttons"]["learn"]["active_fg_color"]  # ← De JSON
+                fg_color=self.app_styles["buttons"]["learn"]["active_fg_color"]  # ← De JSON
             )
             self.console_panel.log(self.localization.t("learn_mode_active"))
             self.console_panel.log(self.localization.t("learn_instructions"))
@@ -622,12 +772,11 @@ class MidiBridgeApp(ctk.CTk):
         self.learning_manager.cancel_learning()
         self.learn_btn.configure(
             text=self.localization.t("learn_controls"), 
-            fg_color=self.styles["buttons"]["learn"]["inactive_fg_color"]  # ← Color normal
+            fg_color=self.app_styles["buttons"]["learn"]["inactive_fg_color"]
         )
-        self.console_panel.log("Modo aprendizaje cancelado")
+        self.console_panel.log(self.localization.t("learn_mode_cancelled"))  # ← CAMBIADO
         # Actualizar UI inmediatamente
         self.controls_panel.refresh_all_switches()
-
 
 
 
@@ -680,7 +829,7 @@ class MidiBridgeApp(ctk.CTk):
         """Carga configuración desde archivo específico"""
         config = self.file_manager.load_configuration(file_path)
         if not config:
-            self.console_panel.log("Error cargando configuración")
+            self.console_panel.log(self.localization.t("error_loading_config"))  # ← CAMBIADO
             return
         
         # Guardar estado de conexión
@@ -696,6 +845,8 @@ class MidiBridgeApp(ctk.CTk):
             self.after(100, self.connect_ports)
         
         self.console_panel.log(f"{self.localization.t('config_loaded')}: {file_path}")
+
+
 
     def apply_configuration(self, config):
         """Aplica configuración cargada"""

@@ -1,0 +1,31 @@
+{
+  "language": "en",
+  "input_port": "FootCtrl-bt 1",
+  "output_port": "mvave_midi 1",
+  "switches": {
+    "btn_0": {
+      "input_cc": "4",
+      "output_cc": "25",
+      "mode": "Momentary",
+      "state": false
+    },
+    "btn_1": {
+      "input_cc": "17",
+      "output_cc": "26",
+      "mode": "Momentary",
+      "state": false
+    },
+    "btn_2": {
+      "input_cc": "18",
+      "output_cc": "27",
+      "mode": "toggle",
+      "state": false
+    },
+    "btn_3": {
+      "input_cc": "19",
+      "output_cc": "28",
+      "mode": "toggle",
+      "state": false
+    }
+  }
+}
